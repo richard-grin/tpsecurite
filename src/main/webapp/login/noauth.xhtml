@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://xmlns.jcp.org/jsf/html">
+  <h:head>
+    <title>Page non autorisée</title>
+  </h:head>
+  <h:body>
+    Vous n'avez pas accès à la page demandée #{requestScope["javax.servlet.error.request_uri"]} 
+    <br/>
+    <h:link outcome="/index" value="Page de démarrage"/>
+  </h:body>
+</html>

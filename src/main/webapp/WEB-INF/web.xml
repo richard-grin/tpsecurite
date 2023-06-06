@@ -62,4 +62,9 @@
     <description>User</description>
     <role-name>user</role-name>
   </security-role>
+  
+  <error-page>
+    <error-code>403</error-code>
+    <location>/login/noauth.xhtml</location>
+  </error-page>
 </web-app>

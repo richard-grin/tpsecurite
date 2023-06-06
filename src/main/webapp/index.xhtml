@@ -1,7 +1,9 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="http://xmlns.jcp.org/jsf/html">
+      xmlns:h="http://xmlns.jcp.org/jsf/html"
+      xmlns:c="http://xmlns.jcp.org/jsp/jstl/core"
+      xmlns:f="http://xmlns.jcp.org/jsf/core">
   <h:head>
     <title>Page démarrage</title>
   </h:head>
@@ -16,5 +18,22 @@
       <h:commandLink value="Page des administrateurs par requête POST"
                      action="/admin/index"/>
     </h:form>
+    <h:panelGroup rendered="#{not empty request.userPrincipal}">
+      <h:form>
+        <br/>
+        <h:outputText value="Nom utilisateur : #{request.userPrincipal.name}"/> 
+        <h:outputText value=" (Administrateur) "
+                      rendered = "#{request.isUserInRole('admin')}"/>
+        <br/>
+        <h:commandButton value="Logout" action="#{loginBean.logout()}"/>
+      </h:form>
+      <br/>
+    </h:panelGroup>
+
+    <c:if test="#{empty request.userPrincipal}">
+      <h:button outcome="/login/login" value="Login">
+        <f:param name="new" value="true"/>
+      </h:button>
+    </c:if>
   </h:body>
 </html>

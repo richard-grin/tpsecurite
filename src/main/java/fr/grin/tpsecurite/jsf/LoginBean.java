@@ -2,20 +2,27 @@ package fr.grin.tpsecurite.jsf;
 
 import jakarta.inject.Named;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.faces.annotation.ManagedProperty;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.ExternalContext;
 import jakarta.faces.context.FacesContext;
+import jakarta.faces.context.Flash;
 import jakarta.inject.Inject;
-import static jakarta.security.auth.message.AuthStatus.SEND_CONTINUE;
-import static jakarta.security.auth.message.AuthStatus.SEND_FAILURE;
 import jakarta.security.enterprise.AuthenticationStatus;
+import static jakarta.security.enterprise.AuthenticationStatus.SEND_CONTINUE;
+import static jakarta.security.enterprise.AuthenticationStatus.SEND_FAILURE;
 import jakarta.security.enterprise.SecurityContext;
 import static jakarta.security.enterprise.authentication.mechanism.http.AuthenticationParameters.withParams;
 import jakarta.security.enterprise.credential.Credential;
 import jakarta.security.enterprise.credential.Password;
 import jakarta.security.enterprise.credential.UsernamePasswordCredential;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.io.IOException;
 
 /**
  * Backing bean pour la page de login avec un formulaire personnalisé (custom).
@@ -26,20 +33,27 @@ import jakarta.servlet.http.HttpServletResponse;
 @RequestScoped
 public class LoginBean {
 
-  /**
-   * Creates a new instance of LoginBean
-   */
-  public LoginBean() {
-  }
-
   @Inject
   private SecurityContext securityContext;
   @Inject
   private FacesContext facesContext;
   @Inject
   private ExternalContext externalContext;
+  @Inject
+  private HttpServletRequest httpServletRequest;
+  @Inject
+  private HttpSession session;
+  
+  @Inject
+  private Flash flash;
+  @Inject // Injecte la valeur du paramètre new
+  @ManagedProperty("#{param.new}")
+  private boolean isNew;
+
 
   private String nom;
+  @NotNull
+  @Size(min = 4, message = "Au moins 4 caractères")
   private String motDePasse;
 
   public String getMotDePasse() {
@@ -58,33 +72,57 @@ public class LoginBean {
     this.nom = nom;
   }
 
-  public void login() {
-    Credential credential
-            = new UsernamePasswordCredential(nom, new Password(motDePasse));
-    AuthenticationStatus status = securityContext.authenticate(
-            (HttpServletRequest) externalContext.getRequest(),
-            (HttpServletResponse) externalContext.getResponse(),
-            withParams().credential(credential));
-    if (status.equals(SEND_CONTINUE)) {
-      facesContext.responseComplete();
-    } else if (status.equals(SEND_FAILURE)) {
-      addError(facesContext, "Nom / mot de passe incorrects");
+  public void login() throws IOException {
+    switch (continueAuthentication()) {
+      case SEND_CONTINUE ->
+        facesContext.responseComplete();
+      case SEND_FAILURE ->
+        addMessage("Nom / mot de passe incorrects", FacesMessage.SEVERITY_ERROR);
+      case SUCCESS -> {
+        addMessage("Login réussi", FacesMessage.SEVERITY_INFO);
+        flash.setKeepMessages(true);
+        externalContext.redirect(
+                externalContext.getRequestContextPath() + "/index.xhtml");
+      }
+      case NOT_DONE -> {
+        // n’arrivera jamais
+      }
     }
   }
 
+  private AuthenticationStatus continueAuthentication() {
+    Credential credential = new UsernamePasswordCredential(
+            nom, new Password(motDePasse));
+    return securityContext.authenticate(
+            httpServletRequest,
+            (HttpServletResponse) externalContext.getResponse(),
+            withParams().newAuthentication(isNew).credential(credential));
+  }
+
   /**
-   * Ajoute une erreur à afficher dans la page de login.
+   * Ajoute un message à afficher dans la page de login.
    *
-   * @param facesContext
-   * @param authentication_failed
+   * @param message texte du message
+   * @param severity sévérité du message
    */
-  private void addError(FacesContext facesContext,
-          String message) {
-    facesContext.addMessage(
-            null,
-            new FacesMessage(FacesMessage.SEVERITY_ERROR,
-                    message,
-                    null));
+  private void addMessage(String message, FacesMessage.Severity severity) {
+    facesContext.addMessage(null, new FacesMessage(severity, message, null));
+  }
+
+  /**
+   * Sortir de la session.
+   *
+   * @return
+   */
+  public String logout() {
+    try {
+//      HttpServletRequest httpServletRequest = (HttpServletRequest) externalContext.getRequest();
+      httpServletRequest.logout();
+      session.invalidate();
+    } catch (ServletException ex) {
+      System.err.println("Erreur pendant logout : " + ex);
+    }
+    return null; // reste sur la page index.xhtml
   }
 
 }
